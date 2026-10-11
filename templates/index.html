@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Infrlo Auto-Renew Hub | 自动续期与探针控制台</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace']
+          },
+          colors: {
+            brand: {
+              50: '#f5f3ff',
+              500: '#8b5cf6',
+              600: '#7c3aed',
+              700: '#6d28d9',
+              900: '#4c1d95'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #0b0718;
+      background-image: 
+        radial-gradient(at 10% 10%, rgba(139, 92, 246, 0.12) 0px, transparent 50%),
+        radial-gradient(at 90% 90%, rgba(99, 102, 241, 0.1) 0px, transparent 50%);
+    }
+    .glass-card {
+      background: rgba(22, 17, 43, 0.7);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+  </style>
+</head>
+<body class="text-slate-100 min-h-screen flex flex-col font-sans selection:bg-brand-500/30">
+
+  <!-- Header -->
+  <header class="border-b border-white/10 glass-card sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-brand-500/25">
+          <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-base font-bold tracking-tight text-white flex items-center gap-2">
+            Infrlo Renew Hub
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse"></span>
+              24/7 在线运行中
+            </span>
+          </h1>
+          <p class="text-xs text-slate-400">轻量自动续期 · 状态探针 · 任务调度系统</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <button onclick="location.reload()" class="px-3 py-1.5 text-xs font-medium bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-colors flex items-center gap-1.5 text-slate-300">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          刷新面板
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-6">
+
+    <!-- Overview Stats -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="glass-card rounded-2xl p-5">
+        <p class="text-xs font-medium text-slate-400">托管任务总数</p>
+        <p class="text-2xl font-extrabold text-white mt-1">{{ summary.total_tasks }} 个</p>
+        <p class="text-xs text-brand-400 mt-2 flex items-center gap-1">APScheduler 异步引擎</p>
+      </div>
+      <div class="glass-card rounded-2xl p-5">
+        <p class="text-xs font-medium text-slate-400">系统运行时间 (Uptime)</p>
+        <p class="text-2xl font-extrabold text-emerald-400 mt-1 font-mono text-xl">{{ uptime_str }}</p>
+        <p class="text-xs text-slate-500 mt-2">服务无闪退 / 探针活跃</p>
+      </div>
+      <div class="glass-card rounded-2xl p-5">
+        <p class="text-xs font-medium text-slate-400">健康探测端点 (Health)</p>
+        <p class="text-2xl font-extrabold text-indigo-400 mt-1 font-mono text-base">/health</p>
+        <p class="text-xs text-slate-400 mt-2">响应 200 OK 防休眠</p>
+      </div>
+      <div class="glass-card rounded-2xl p-5">
+        <p class="text-xs font-medium text-slate-400">Telegram 通知状态</p>
+        <p class="text-xl font-bold mt-1.5 {% if tg_ready %}text-emerald-400{% else %}text-amber-400{% endif %}">
+          {% if tg_ready %}已配置就绪{% else %}未绑定 Token{% endif %}
+        </p>
+        <p class="text-xs text-slate-500 mt-2">失败实时报警通知</p>
+      </div>
+    </div>
+
+    <!-- Task Table -->
+    <div class="glass-card rounded-2xl overflow-hidden border border-white/10 shadow-xl">
+      <div class="px-6 py-4 border-b border-white/10 flex items-center justify-between">
+        <h2 class="text-sm font-bold text-white flex items-center gap-2">
+          <span>📋 续期与保活任务列表</span>
+          <span class="text-xs font-normal text-slate-400">（支持任意时间手动测试执行）</span>
+        </h2>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="border-b border-white/5 bg-white/[0.02] text-slate-400">
+              <th class="py-3 px-4 font-semibold">任务名称 / 标识</th>
+              <th class="py-3 px-4 font-semibold">执行周期</th>
+              <th class="py-3 px-4 font-semibold">上次执行时间</th>
+              <th class="py-3 px-4 font-semibold">当前状态</th>
+              <th class="py-3 px-4 font-semibold">执行反馈信息</th>
+              <th class="py-3 px-4 font-semibold text-right">操作</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-white/5">
+            {% for task in summary.tasks %}
+            <tr class="hover:bg-white/[0.02] transition-colors" id="task-row-{{ task.id }}">
+              <td class="py-3.5 px-4 font-medium text-white">
+                <div class="font-bold text-slate-100">{{ task.name }}</div>
+                <div class="text-[11px] text-slate-500 font-mono mt-0.5">{{ task.id }} · {{ task.description }}</div>
+              </td>
+              <td class="py-3.5 px-4 text-slate-300 font-mono">{{ task.interval_desc }}</td>
+              <td class="py-3.5 px-4 text-slate-400 font-mono" id="time-{{ task.id }}">{{ task.last_run or '等待轮询' }}</td>
+              <td class="py-3.5 px-4" id="status-{{ task.id }}">
+                {% if task.last_status == 'SUCCESS' %}
+                  <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">成功</span>
+                {% elif task.last_status == 'FAILED' %}
+                  <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20">失败</span>
+                {% elif task.last_status == 'RUNNING' %}
+                  <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 animate-pulse">运行中</span>
+                {% else %}
+                  <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-500/10 text-slate-400 border border-slate-500/20">待命</span>
+                {% endif %}
+              </td>
+              <td class="py-3.5 px-4 text-slate-300 max-w-xs truncate" id="msg-{{ task.id }}" title="{{ task.last_message }}">
+                {{ task.last_message }}
+              </td>
+              <td class="py-3.5 px-4 text-right">
+                <button onclick="triggerTask('{{ task.id }}')" id="btn-{{ task.id }}" class="px-2.5 py-1.5 rounded-lg bg-brand-600/80 hover:bg-brand-600 text-white font-medium text-xs transition shadow-sm hover:shadow-brand-500/20 active:scale-95">
+                  立即执行
+                </button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Execution Logs -->
+    <div class="glass-card rounded-2xl p-5 border border-white/10">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-xs font-bold text-white flex items-center gap-2">
+          <span>📜 最新执行日志历史</span>
+        </h3>
+        <span class="text-[11px] text-slate-500 font-mono">保留最近 15 次调用记录</span>
+      </div>
+      <div class="bg-black/40 rounded-xl p-3 border border-white/5 font-mono text-xs max-h-56 overflow-y-auto space-y-1.5" id="log-box">
+        {% if summary.recent_logs %}
+          {% for log in summary.recent_logs %}
+            <div class="flex items-start gap-2 text-slate-400 leading-relaxed">
+              <span class="text-slate-600">[{{ log.time }}]</span>
+              <span class="font-semibold {% if log.status == 'SUCCESS' %}text-emerald-400{% else %}text-rose-400{% endif %}">[{{ log.status }}]</span>
+              <span class="text-slate-300 font-bold">[{{ log.task_name }}]</span>
+              <span class="text-slate-300 flex-1">{{ log.message }}</span>
+              <span class="text-slate-500 text-[11px]">({{ log.duration }})</span>
+            </div>
+          {% endfor %}
+        {% else %}
+          <div class="text-slate-500 italic py-2">暂无历史执行日志，等待定时任务触发或点击上方【立即执行】测试。</div>
+        {% endif %}
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="border-t border-white/5 py-4 text-center text-xs text-slate-500">
+    Infrlo Cloud PaaS 部署 · 兼容 Node.js / Python Runtime
+  </footer>
+
+  <script>
+    async function triggerTask(taskId) {
+      const btn = document.getElementById('btn-' + taskId);
+      const statusEl = document.getElementById('status-' + taskId);
+      const msgEl = document.getElementById('msg-' + taskId);
+      
+      btn.disabled = true;
+      btn.innerText = '执行中...';
+      btn.classList.add('opacity-50');
+      statusEl.innerHTML = '<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 animate-pulse">执行中</span>';
+      
+      try {
+        const res = await fetch('/api/trigger/' + taskId, { method: 'POST' });
+        const data = await res.json();
+        
+        if (data.status === 'SUCCESS') {
+          statusEl.innerHTML = '<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">成功</span>';
+        } else {
+          statusEl.innerHTML = '<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20">失败</span>';
+        }
+        msgEl.innerText = data.message || '执行完毕';
+        setTimeout(() => location.reload(), 1200);
+      } catch (e) {
+        statusEl.innerHTML = '<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-rose-500/10 text-rose-400">网络异常</span>';
+        msgEl.innerText = String(e);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = '立即执行';
+        btn.classList.remove('opacity-50');
+      }
+    }
+  </script>
+</body>
+</html>
