@@ -139,13 +139,13 @@ class TaskRegistry:
             return {"status": "FAILED", "message": str(e), "duration": duration}
 
     async def _run_http_task(self, task: Dict[str, Any]):
-        cfg = task.get("http_config", {})
-        method = cfg.get("method", "GET").upper()
-        url = cfg.get("url", "").strip()
-        headers_str = cfg.get("headers", "").strip()
-        cookie_str = cfg.get("cookie", "").strip()
-        body_str = cfg.get("body", "").strip()
-        success_kw = cfg.get("success_keyword", "").strip()
+        cfg = task.get("http_config", {}) or {}
+        method = str(cfg.get("method") or "GET").upper()
+        url = str(cfg.get("url") or "").strip()
+        headers_val = cfg.get("headers") or ""
+        cookie_str = str(cfg.get("cookie") or "").strip()
+        body_val = cfg.get("body") or ""
+        success_kw = str(cfg.get("success_keyword") or "").strip()
 
         if not url:
             return False, "目标 URL 不能为空"
@@ -153,13 +153,24 @@ class TaskRegistry:
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
-        if headers_str:
-            for line in headers_str.split("\n"):
+        if isinstance(headers_val, dict):
+            for k, v in headers_val.items():
+                headers[str(k).strip()] = str(v).strip()
+        elif isinstance(headers_val, str) and headers_val.strip():
+            for line in headers_val.split("\n"):
                 if ":" in line:
                     k, v = line.split(":", 1)
                     headers[k.strip()] = v.strip()
+
         if cookie_str:
             headers["Cookie"] = cookie_str
+
+        if isinstance(body_val, (dict, list)):
+            body_str = json.dumps(body_val)
+            if "Content-Type" not in headers:
+                headers["Content-Type"] = "application/json"
+        else:
+            body_str = str(body_val).strip()
 
         async with httpx.AsyncClient(timeout=15.0, verify=False, follow_redirects=True) as client:
             if method == "GET":
