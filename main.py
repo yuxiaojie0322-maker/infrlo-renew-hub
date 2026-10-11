@@ -234,7 +234,12 @@ async def trigger_task(task_id: str, request: Request):
 async def export_tasks(request: Request):
     if not check_authenticated(request):
         return JSONResponse({"status": "error", "message": "未登录"}, status_code=401)
-    return registry.tasks
+    clean = {}
+    for k, v in registry.tasks.items():
+        item = dict(v)
+        item.pop("func", None)
+        clean[k] = item
+    return clean
 
 @app.post("/api/import")
 async def import_tasks(request: Request):

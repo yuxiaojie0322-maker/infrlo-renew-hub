@@ -199,9 +199,14 @@ class TaskRegistry:
         return False
 
     def get_summary(self) -> Dict[str, Any]:
+        clean_tasks = []
+        for t in self.tasks.values():
+            item = dict(t)
+            item.pop("func", None)
+            clean_tasks.append(item)
         return {
             "total_tasks": len(self.tasks),
-            "tasks": list(self.tasks.values()),
+            "tasks": clean_tasks,
             "recent_logs": self.logs[:15]
         }
 
