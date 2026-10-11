@@ -65,24 +65,31 @@ templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), "t
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
     """状态可视化仪表盘"""
-    uptime_sec = int(time.time() - START_TIME)
-    hours = uptime_sec // 3600
-    minutes = (uptime_sec % 3600) // 60
-    seconds = uptime_sec % 60
-    uptime_str = f"{hours}h {minutes}m {seconds}s"
-    
-    tg_ready = bool(os.environ.get("TG_BOT_TOKEN") and os.environ.get("TG_CHAT_ID"))
-    summary = registry.get_summary()
-    
-    return templates.TemplateResponse(
-        "index.html",
-        {
+    try:
+        uptime_sec = int(time.time() - START_TIME)
+        hours = uptime_sec // 3600
+        minutes = (uptime_sec % 3600) // 60
+        seconds = uptime_sec % 60
+        uptime_str = f"{hours}h {minutes}m {seconds}s"
+        
+        tg_ready = bool(os.environ.get("TG_BOT_TOKEN") and os.environ.get("TG_CHAT_ID"))
+        summary = registry.get_summary()
+        
+        context_data = {
             "request": request,
             "summary": summary,
             "uptime_str": uptime_str,
             "tg_ready": tg_ready
         }
-    )
+        
+        # 兼容 Starlette >= 0.28 与旧版
+        try:
+            return templates.TemplateResponse(request=request, name="index.html", context=context_data)
+        except TypeError:
+            return templates.TemplateResponse("index.html", context_data)
+    except Exception as e:
+        logger.error(f"渲染页面异常: {e}", exc_info=True)
+        return HTMLResponse(f"<h3>控制台渲染异常</h3><pre>{str(e)}</pre>", status_code=500)
 
 @app.get("/health")
 async def health_check():
@@ -102,7 +109,7 @@ async def trigger_task(task_id: str):
 
 if __name__ == "__main__":
     import uvicorn
-    # Infrlo 会自动在容器中注入 PORT 环境变量
-    port = int(os.environ.get("PORT", 8080))
+    # Infrlo 分配并期望的端口是 5000
+    port = int(os.environ.get("PORT", 5000))
     logger.info(f"🌐 正在启动服务，监听端口: {port}")
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
