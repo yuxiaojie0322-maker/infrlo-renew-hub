@@ -43,6 +43,7 @@ class TaskRegistry:
                 # 不存储不可序列化字段
                 item.pop("func", None)
                 to_save.append(item)
+            os.makedirs(os.path.dirname(DATA_FILE), exist_ok=True)
             with open(DATA_FILE, "w", encoding="utf-8") as f:
                 json.dump(to_save, f, ensure_ascii=False, indent=2)
         except Exception as e:
