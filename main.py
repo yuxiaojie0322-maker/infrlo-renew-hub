@@ -103,7 +103,12 @@ async def login_page(request: Request):
     return templates.TemplateResponse(request=request, name="login.html", context={"error": None})
 
 @app.post("/login", response_class=HTMLResponse)
-async def login_submit(request: Request, password: str = Form(...)):
+async def login_submit(request: Request):
+    try:
+        form = await request.form()
+        password = str(form.get("password", ""))
+    except Exception:
+        password = "" 
     if password == ADMIN_PASSWORD:
         resp = RedirectResponse("/", status_code=302)
         resp.set_cookie(key=COOKIE_AUTH_KEY, value=AUTH_TOKEN_VALUE, max_age=86400 * 30, httponly=True)
