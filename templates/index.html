@@ -41,12 +41,18 @@
       -webkit-backdrop-filter: blur(16px);
       border: 1px solid rgba(255, 255, 255, 0.08);
     }
+    .glass-modal {
+      background: rgba(18, 13, 36, 0.95);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
   </style>
 </head>
 <body class="text-slate-100 min-h-screen flex flex-col font-sans selection:bg-brand-500/30">
 
   <!-- Header -->
-  <header class="border-b border-white/10 glass-card sticky top-0 z-50">
+  <header class="border-b border-white/10 glass-card sticky top-0 z-40">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
       <div class="flex items-center space-x-3">
         <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-brand-500/25">
@@ -62,16 +68,32 @@
               24/7 在线运行中
             </span>
           </h1>
-          <p class="text-xs text-slate-400">轻量自动续期 · 状态探针 · 任务调度系统</p>
+          <p class="text-xs text-slate-400">轻量自动续期 · 状态探针 · 可视化任务管理系统</p>
         </div>
       </div>
-      <div class="flex items-center gap-3">
-        <button onclick="location.reload()" class="px-3 py-1.5 text-xs font-medium bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-colors flex items-center gap-1.5 text-slate-300">
+      <div class="flex items-center gap-2 sm:gap-3">
+        <button onclick="openAddTaskModal()" class="px-3 py-1.5 text-xs font-bold bg-brand-600 hover:bg-brand-500 text-white rounded-lg transition-all shadow-md shadow-brand-600/30 flex items-center gap-1.5 active:scale-95">
           <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
           </svg>
-          刷新面板
+          新建任务
         </button>
+        <button onclick="exportBackup()" class="px-2.5 py-1.5 text-xs font-medium bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-colors flex items-center gap-1 text-slate-300" title="导出备份配置文件">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          备份
+        </button>
+        <button onclick="document.getElementById('importFile').click()" class="px-2.5 py-1.5 text-xs font-medium bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-colors flex items-center gap-1 text-slate-300" title="导入配置文件">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+          </svg>
+          恢复
+        </button>
+        <input type="file" id="importFile" accept=".json" class="hidden" onchange="importBackup(this)" />
+        <a href="/logout" class="px-2.5 py-1.5 text-xs font-medium bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 rounded-lg transition-colors flex items-center gap-1" title="退出安全登录">
+          退出
+        </a>
       </div>
     </div>
   </header>
@@ -84,7 +106,7 @@
       <div class="glass-card rounded-2xl p-5">
         <p class="text-xs font-medium text-slate-400">托管任务总数</p>
         <p class="text-2xl font-extrabold text-white mt-1">{{ summary.total_tasks }} 个</p>
-        <p class="text-xs text-brand-400 mt-2 flex items-center gap-1">APScheduler 异步引擎</p>
+        <p class="text-xs text-brand-400 mt-2 flex items-center gap-1">支持网页一键增删改</p>
       </div>
       <div class="glass-card rounded-2xl p-5">
         <p class="text-xs font-medium text-slate-400">系统运行时间 (Uptime)</p>
@@ -94,7 +116,7 @@
       <div class="glass-card rounded-2xl p-5">
         <p class="text-xs font-medium text-slate-400">健康探测端点 (Health)</p>
         <p class="text-2xl font-extrabold text-indigo-400 mt-1 font-mono text-base">/health</p>
-        <p class="text-xs text-slate-400 mt-2">响应 200 OK 防休眠</p>
+        <p class="text-xs text-slate-400 mt-2">免鉴权响应 200 OK 防休眠</p>
       </div>
       <div class="glass-card rounded-2xl p-5">
         <p class="text-xs font-medium text-slate-400">Telegram 通知状态</p>
@@ -109,16 +131,22 @@
     <div class="glass-card rounded-2xl overflow-hidden border border-white/10 shadow-xl">
       <div class="px-6 py-4 border-b border-white/10 flex items-center justify-between">
         <h2 class="text-sm font-bold text-white flex items-center gap-2">
-          <span>📋 续期与保活任务列表</span>
-          <span class="text-xs font-normal text-slate-400">（支持任意时间手动测试执行）</span>
+          <span>📋 续期与自动化任务列表</span>
+          <span class="text-xs font-normal text-slate-400">（支持网页直接新增、编辑与删除）</span>
         </h2>
+        <button onclick="location.reload()" class="text-xs text-slate-400 hover:text-white transition flex items-center gap-1">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          刷新
+        </button>
       </div>
 
       <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse text-xs">
           <thead>
             <tr class="border-b border-white/5 bg-white/[0.02] text-slate-400">
-              <th class="py-3 px-4 font-semibold">任务名称 / 标识</th>
+              <th class="py-3 px-4 font-semibold">任务名称 / 目标</th>
               <th class="py-3 px-4 font-semibold">执行周期</th>
               <th class="py-3 px-4 font-semibold">上次执行时间</th>
               <th class="py-3 px-4 font-semibold">当前状态</th>
@@ -130,8 +158,15 @@
             {% for task in summary.tasks %}
             <tr class="hover:bg-white/[0.02] transition-colors" id="task-row-{{ task.id }}">
               <td class="py-3.5 px-4 font-medium text-white">
-                <div class="font-bold text-slate-100">{{ task.name }}</div>
-                <div class="text-[11px] text-slate-500 font-mono mt-0.5">{{ task.id }} · {{ task.description }}</div>
+                <div class="font-bold text-slate-100 flex items-center gap-2">
+                  {{ task.name }}
+                  {% if task.http_config %}
+                  <span class="px-1.5 py-0.5 rounded bg-brand-500/10 text-brand-300 border border-brand-500/20 text-[10px] font-mono">{{ task.http_config.method }}</span>
+                  {% endif %}
+                </div>
+                <div class="text-[11px] text-slate-500 font-mono mt-0.5 max-w-sm truncate">
+                  {{ task.id }} · {{ task.description or (task.http_config and task.http_config.url) }}
+                </div>
               </td>
               <td class="py-3.5 px-4 text-slate-300 font-mono">{{ task.interval_desc }}</td>
               <td class="py-3.5 px-4 text-slate-400 font-mono" id="time-{{ task.id }}">{{ task.last_run or '等待轮询' }}</td>
@@ -149,10 +184,18 @@
               <td class="py-3.5 px-4 text-slate-300 max-w-xs truncate" id="msg-{{ task.id }}" title="{{ task.last_message }}">
                 {{ task.last_message }}
               </td>
-              <td class="py-3.5 px-4 text-right">
+              <td class="py-3.5 px-4 text-right space-x-1.5 whitespace-nowrap">
                 <button onclick="triggerTask('{{ task.id }}')" id="btn-{{ task.id }}" class="px-2.5 py-1.5 rounded-lg bg-brand-600/80 hover:bg-brand-600 text-white font-medium text-xs transition shadow-sm hover:shadow-brand-500/20 active:scale-95">
                   立即执行
                 </button>
+                {% if task.http_config %}
+                <button onclick="editTask('{{ task.id }}')" class="px-2 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 text-xs transition">
+                  编辑
+                </button>
+                <button onclick="deleteTask('{{ task.id }}')" class="px-2 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-xs transition">
+                  删除
+                </button>
+                {% endif %}
               </td>
             </tr>
             {% endfor %}
@@ -188,11 +231,198 @@
 
   </main>
 
+  <!-- Add/Edit Task Modal -->
+  <div id="taskModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="glass-modal w-full max-w-lg rounded-2xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-white/10 pb-3">
+        <h3 id="modalTitle" class="text-sm font-bold text-white flex items-center gap-2">
+          <span>✨ 新增定时续期/签到任务</span>
+        </h3>
+        <button onclick="closeTaskModal()" class="text-slate-400 hover:text-white text-lg font-bold">&times;</button>
+      </div>
+
+      <form id="taskForm" onsubmit="handleSaveTask(event)" class="space-y-3.5 text-xs">
+        <input type="hidden" id="editTaskId" value="">
+
+        <div>
+          <label class="block font-semibold text-slate-300 mb-1">任务名称</label>
+          <input type="text" id="taskName" required placeholder="例如: NodeSeek每日签到 / Serv00保活" class="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:border-brand-500">
+        </div>
+
+        <div class="grid grid-cols-3 gap-2">
+          <div class="col-span-1">
+            <label class="block font-semibold text-slate-300 mb-1">请求方式</label>
+            <select id="taskMethod" class="w-full px-3 py-2 rounded-xl bg-[#1d1633] border border-white/10 text-white focus:outline-none focus:border-brand-500">
+              <option value="GET">GET</option>
+              <option value="POST">POST</option>
+              <option value="PUT">PUT</option>
+            </select>
+          </div>
+          <div class="col-span-2">
+            <label class="block font-semibold text-slate-300 mb-1">目标请求 URL</label>
+            <input type="url" id="taskUrl" required placeholder="https://api.example.com/checkin" class="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:border-brand-500">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-semibold text-slate-300 mb-1">执行周期类型</label>
+            <select id="intervalType" onchange="handleIntervalChange()" class="w-full px-3 py-2 rounded-xl bg-[#1d1633] border border-white/10 text-white focus:outline-none focus:border-brand-500">
+              <option value="hours">间隔小时 (Hours)</option>
+              <option value="minutes">间隔分钟 (Minutes)</option>
+              <option value="daily">每天固定时间 (Daily)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-300 mb-1" id="intervalValueLabel">周期数值 (如: 12)</label>
+            <input type="text" id="intervalValue" required value="12" class="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:border-brand-500">
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-300 mb-1">Cookie 凭证 (选填，直接粘贴)</label>
+          <textarea id="taskCookie" rows="2" placeholder="session=xxx; token=yyy" class="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:border-brand-500 font-mono text-[11px]"></textarea>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-300 mb-1">自定义 Headers (选填，每行一个 Key: Value)</label>
+          <textarea id="taskHeaders" rows="2" placeholder="Authorization: Bearer xxx&#10;Referer: https://example.com" class="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:border-brand-500 font-mono text-[11px]"></textarea>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-300 mb-1">POST 请求 Body (选填，JSON 或表单)</label>
+          <textarea id="taskBody" rows="2" placeholder='{"action": "renew"}' class="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:border-brand-500 font-mono text-[11px]"></textarea>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-300 mb-1">成功校验关键词 (选填，返回包含该词即算成功)</label>
+          <input type="text" id="taskSuccessKw" placeholder="例如: success 或 ok 或 200" class="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:border-brand-500">
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
+          <button type="button" onclick="closeTaskModal()" class="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 transition">取消</button>
+          <button type="submit" id="saveTaskBtn" class="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold transition">保存并立即生效</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <footer class="border-t border-white/5 py-4 text-center text-xs text-slate-500">
-    Infrlo Cloud PaaS 部署 · 兼容 Node.js / Python Runtime
+    Infrlo Cloud PaaS 部署 · 纯网页可视化增删改查 · 密码安全保护
   </footer>
 
   <script>
+    const allTasks = {{ summary.tasks | tojson }};
+
+    function openAddTaskModal() {
+      document.getElementById('modalTitle').innerText = '✨ 新增定时续期/签到任务';
+      document.getElementById('editTaskId').value = '';
+      document.getElementById('taskForm').reset();
+      document.getElementById('intervalType').value = 'hours';
+      document.getElementById('intervalValue').value = '12';
+      handleIntervalChange();
+      document.getElementById('taskModal').classList.remove('hidden');
+      document.getElementById('taskModal').classList.add('flex');
+    }
+
+    function closeTaskModal() {
+      document.getElementById('taskModal').classList.add('hidden');
+      document.getElementById('taskModal').classList.remove('flex');
+    }
+
+    function handleIntervalChange() {
+      const type = document.getElementById('intervalType').value;
+      const label = document.getElementById('intervalValueLabel');
+      const val = document.getElementById('intervalValue');
+      if (type === 'hours') {
+        label.innerText = '间隔小时数 (如: 12 或 24)';
+        if (!val.value || val.value.includes(':')) val.value = '12';
+      } else if (type === 'minutes') {
+        label.innerText = '间隔分钟数 (如: 30)';
+        if (!val.value || val.value.includes(':')) val.value = '30';
+      } else if (type === 'daily') {
+        label.innerText = '每天执行时刻 (如: 08:30)';
+        if (!val.value.includes(':')) val.value = '08:30';
+      }
+    }
+
+    function editTask(taskId) {
+      const task = allTasks.find(t => t.id === taskId);
+      if (!task || !task.http_config) return;
+      document.getElementById('modalTitle').innerText = '✏️ 编辑任务: ' + task.name;
+      document.getElementById('editTaskId').value = task.id;
+      document.getElementById('taskName').value = task.name;
+      document.getElementById('taskMethod').value = task.http_config.method || 'GET';
+      document.getElementById('taskUrl').value = task.http_config.url || '';
+      document.getElementById('intervalType').value = task.interval_type || 'hours';
+      document.getElementById('intervalValue').value = task.interval_value || '12';
+      document.getElementById('taskCookie').value = task.http_config.cookie || '';
+      document.getElementById('taskHeaders').value = task.http_config.headers || '';
+      document.getElementById('taskBody').value = task.http_config.body || '';
+      document.getElementById('taskSuccessKw').value = task.http_config.success_keyword || '';
+      handleIntervalChange();
+      document.getElementById('taskModal').classList.remove('hidden');
+      document.getElementById('taskModal').classList.add('flex');
+    }
+
+    async function handleSaveTask(e) {
+      e.preventDefault();
+      const btn = document.getElementById('saveTaskBtn');
+      btn.disabled = true;
+      btn.innerText = '保存中...';
+
+      const editId = document.getElementById('editTaskId').value;
+      const payload = {
+        name: document.getElementById('taskName').value,
+        interval_type: document.getElementById('intervalType').value,
+        interval_value: document.getElementById('intervalValue').value,
+        http_config: {
+          method: document.getElementById('taskMethod').value,
+          url: document.getElementById('taskUrl').value,
+          cookie: document.getElementById('taskCookie').value,
+          headers: document.getElementById('taskHeaders').value,
+          body: document.getElementById('taskBody').value,
+          success_keyword: document.getElementById('taskSuccessKw').value
+        }
+      };
+
+      try {
+        const url = editId ? `/api/tasks/${editId}` : '/api/tasks';
+        const method = editId ? 'PUT' : 'POST';
+        const res = await fetch(url, {
+          method: method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.status === 'ok') {
+          location.reload();
+        } else {
+          alert('保存失败: ' + (data.message || '未知错误'));
+        }
+      } catch (err) {
+        alert('网络请求异常: ' + err);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = '保存并立即生效';
+      }
+    }
+
+    async function deleteTask(taskId) {
+      if (!confirm('确定要删除该任务吗？')) return;
+      try {
+        const res = await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.status === 'ok') {
+          location.reload();
+        } else {
+          alert('删除失败: ' + data.message);
+        }
+      } catch (e) {
+        alert('网络错误: ' + e);
+      }
+    }
+
     async function triggerTask(taskId) {
       const btn = document.getElementById('btn-' + taskId);
       const statusEl = document.getElementById('status-' + taskId);
@@ -222,6 +452,40 @@
         btn.innerText = '立即执行';
         btn.classList.remove('opacity-50');
       }
+    }
+
+    async function exportBackup() {
+      const res = await fetch('/api/export');
+      const data = await res.json();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `renew_hub_backup_${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+    }
+
+    async function importBackup(input) {
+      const file = input.files[0];
+      if (!file) return;
+      const text = await file.text();
+      try {
+        const json = JSON.parse(text);
+        const res = await fetch('/api/import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(json)
+        });
+        const data = await res.json();
+        if (data.status === 'ok') {
+          alert('配置恢复成功！');
+          location.reload();
+        } else {
+          alert('恢复失败: ' + data.message);
+        }
+      } catch (e) {
+        alert('文件格式错误: ' + e);
+      }
+      input.value = '';
     }
   </script>
 </body>
